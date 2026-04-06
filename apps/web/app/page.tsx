@@ -129,9 +129,6 @@ export default function Home() {
     ? Object.values(summary.after.missing_by_column).reduce((a, b) => a + b, 0)
     : 0;
 
-  // Suppress unused variable warning
-  void rowsRemoved;
-
   return (
     <div className="min-h-screen bg-dark-900 bg-grid-pattern bg-grid">
       {/* Ambient glow */}
@@ -433,6 +430,12 @@ export default function Home() {
                           {summary.duplicates_removed}
                         </p>
                         <p className="text-slate-400 text-xs">Dupes removed</p>
+                      </div>
+                      <div className="bg-[#1e293b] rounded-lg p-3 text-center col-span-2">
+                        <p className="text-yellow-400 font-bold text-lg">
+                          {rowsRemoved.toLocaleString()}
+                        </p>
+                        <p className="text-slate-400 text-xs">Total rows removed</p>
                       </div>
                     </div>
                   )}
