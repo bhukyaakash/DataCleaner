@@ -105,7 +105,7 @@ def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.Data
                 else:
                     # Try date parsing
                     try:
-                        parsed = pd.to_datetime(df[col], errors="coerce", infer_datetime_format=True)
+                        parsed = pd.to_datetime(df[col], errors="coerce")
                         if parsed.notna().sum() / max(len(df), 1) > 0.5:
                             df[col] = parsed
                             steps.append(f"Column '{col}' parsed as datetime")
