@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.env
+.venv
+venv/
+env/
+*.pyc
+
+# API job artifacts
+apps/api/uploads/*/
+apps/api/outputs/*/
+apps/api/reports/*/
+
+# Node
+node_modules/
+.next/
+*.tsbuildinfo
+npm-debug.log*
+apps/web/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

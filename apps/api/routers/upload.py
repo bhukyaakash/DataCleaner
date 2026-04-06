@@ -1,11 +1,9 @@
 import os
 import uuid
 import json
-import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
 import aiofiles
 
 from models.schemas import CleaningOptions, JobStatus
@@ -53,7 +51,7 @@ async def upload_file(
         "status": JobStatus.pending,
         "filename": file.filename,
         "upload_path": upload_path,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None,
         "error": None,
         "summary": None,
@@ -97,14 +95,14 @@ async def process_job(job_id: str, upload_path: str, filename: str, options: Cle
         # PDF
         report_dir = get_job_dir("reports", job_id)
         pdf_path = os.path.join(report_dir, "report.pdf")
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         build_pdf_report(pdf_path, filename, summary, timestamp)
 
         jobs[job_id]["status"] = JobStatus.completed
-        jobs[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
         jobs[job_id]["summary"] = summary
 
     except Exception as e:
         jobs[job_id]["status"] = JobStatus.failed
         jobs[job_id]["error"] = str(e)
-        jobs[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()

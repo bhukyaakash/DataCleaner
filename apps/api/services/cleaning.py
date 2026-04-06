@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from models.schemas import CleaningOptions, MissingNumericStrategy, MissingCategoricalStrategy, OutlierStrategy
 from typing import Dict, Any, Tuple
-import json
 
 def load_dataframe(filepath: str, filename: str) -> pd.DataFrame:
     ext = filename.rsplit(".", 1)[-1].lower()
@@ -70,14 +69,18 @@ def handle_outliers_iqr(df: pd.DataFrame, strategy: OutlierStrategy) -> Tuple[pd
         outlier_mask = (df[col] < lower) | (df[col] > upper)
         count = int(outlier_mask.sum())
         if strategy == OutlierStrategy.clip:
+            df = df.copy()
             df[col] = df[col].clip(lower=lower, upper=upper)
         elif strategy == OutlierStrategy.remove:
-            df = df[~outlier_mask]
+            df = df[~outlier_mask].copy()
         total_removed += count
     return df, total_removed
 
 def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     steps = []
+
+    # Work on an explicit copy to avoid SettingWithCopyWarning
+    df = df.copy()
 
     # Before stats
     before_rows = len(df)
@@ -89,7 +92,7 @@ def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.Data
     dupes_removed = 0
     if options.remove_duplicates:
         before = len(df)
-        df = df.drop_duplicates()
+        df = df.drop_duplicates().copy()
         dupes_removed = before - len(df)
         steps.append(f"Removed {dupes_removed} duplicate rows")
 
@@ -100,13 +103,15 @@ def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.Data
                 # Try numeric coercion
                 coerced = pd.to_numeric(df[col], errors="coerce")
                 if coerced.notna().sum() / max(len(df), 1) > 0.5:
+                    df = df.copy()
                     df[col] = coerced
                     steps.append(f"Column '{col}' coerced to numeric")
                 else:
                     # Try date parsing
                     try:
-                        parsed = pd.to_datetime(df[col], errors="coerce")
+                        parsed = pd.to_datetime(df[col], errors="coerce", format="mixed")
                         if parsed.notna().sum() / max(len(df), 1) > 0.5:
+                            df = df.copy()
                             df[col] = parsed
                             steps.append(f"Column '{col}' parsed as datetime")
                     except Exception:
@@ -115,9 +120,10 @@ def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.Data
     # 3. Missing values - numeric
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     for col in numeric_cols:
-        missing = df[col].isna().sum()
+        missing = int(df[col].isna().sum())
         if missing == 0:
             continue
+        df = df.copy()
         if options.missing_numeric == MissingNumericStrategy.median:
             df[col] = df[col].fillna(df[col].median())
         elif options.missing_numeric == MissingNumericStrategy.mean:
@@ -125,25 +131,25 @@ def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.Data
         elif options.missing_numeric == MissingNumericStrategy.zero:
             df[col] = df[col].fillna(0)
         elif options.missing_numeric == MissingNumericStrategy.drop:
-            df = df.dropna(subset=[col])
+            df = df.dropna(subset=[col]).copy()
         if missing > 0:
             steps.append(f"Filled {missing} missing values in numeric column '{col}' ({options.missing_numeric})")
 
     # 4. Missing values - categorical
     cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-    # Also include datetime handled as object
+    # Also include any non-numeric columns (e.g., datetime)
     for col in df.columns:
-        if col not in numeric_cols:
-            if col not in cat_cols:
-                cat_cols.append(col)
+        if col not in numeric_cols and col not in cat_cols:
+            cat_cols.append(col)
     cat_cols = [c for c in cat_cols if c in df.columns]
 
     for col in cat_cols:
         if col not in df.columns:
             continue
-        missing = df[col].isna().sum()
+        missing = int(df[col].isna().sum())
         if missing == 0:
             continue
+        df = df.copy()
         if options.missing_categorical == MissingCategoricalStrategy.mode:
             mode_val = df[col].mode()
             if len(mode_val) > 0:
@@ -151,7 +157,7 @@ def clean_dataframe(df: pd.DataFrame, options: CleaningOptions) -> Tuple[pd.Data
         elif options.missing_categorical == MissingCategoricalStrategy.unknown:
             df[col] = df[col].fillna("Unknown")
         elif options.missing_categorical == MissingCategoricalStrategy.drop:
-            df = df.dropna(subset=[col])
+            df = df.dropna(subset=[col]).copy()
         if missing > 0:
             steps.append(f"Filled {missing} missing values in categorical column '{col}' ({options.missing_categorical})")
 
