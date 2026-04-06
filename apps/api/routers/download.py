@@ -1,12 +1,17 @@
 import os
+import re
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from routers.upload import get_jobs
 
 router = APIRouter()
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
 @router.get("/jobs/{job_id}/download/{format}")
 async def download_file(job_id: str, format: str):
+    if not _UUID_RE.match(job_id):
+        raise HTTPException(status_code=404, detail="Job not found")
     jobs = get_jobs()
     job = jobs.get(job_id)
     if not job:
