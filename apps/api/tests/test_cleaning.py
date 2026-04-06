@@ -1,11 +1,6 @@
 import pytest
 import pandas as pd
 import numpy as np
-import sys
-import os
-
-# Add parent dir to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.cleaning import (
     clean_dataframe, get_missing_counts, get_basic_stats, get_top_correlations

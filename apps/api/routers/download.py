@@ -8,6 +8,22 @@ router = APIRouter()
 
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
+# Allowed static file names per format — no user input enters the filename
+_FORMAT_FILE: dict[str, str] = {
+    "csv": "cleaned.csv",
+    "xlsx": "cleaned.xlsx",
+    "json": "cleaned.json",
+}
+
+def _safe_path(base_dir: str, job_id: str, filename: str) -> str:
+    """Build an absolute path and assert it stays inside base_dir."""
+    base = os.path.realpath(base_dir)
+    full = os.path.realpath(os.path.join(base_dir, job_id, filename))
+    if not full.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    return full
+
+
 @router.get("/jobs/{job_id}/download/{format}")
 async def download_file(job_id: str, format: str):
     if not _UUID_RE.match(job_id):
@@ -23,23 +39,23 @@ async def download_file(job_id: str, format: str):
     if format not in ("csv", "xlsx", "json", "pdf"):
         raise HTTPException(status_code=400, detail="Format must be csv, xlsx, json, or pdf")
 
-    filename = job["filename"].rsplit(".", 1)[0]
+    stem = job["filename"].rsplit(".", 1)[0]
 
     if format == "pdf":
-        path = os.path.join("reports", job_id, "report.pdf")
+        path = _safe_path("reports", job_id, "report.pdf")
         media_type = "application/pdf"
-        dl_name = f"{filename}_report.pdf"
+        dl_name = f"{stem}_report.pdf"
     else:
-        path = os.path.join("outputs", job_id, f"cleaned.{format}")
+        path = _safe_path("outputs", job_id, _FORMAT_FILE[format])
         if format == "csv":
             media_type = "text/csv"
-            dl_name = f"{filename}_cleaned.csv"
+            dl_name = f"{stem}_cleaned.csv"
         elif format == "xlsx":
             media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            dl_name = f"{filename}_cleaned.xlsx"
+            dl_name = f"{stem}_cleaned.xlsx"
         else:
             media_type = "application/json"
-            dl_name = f"{filename}_cleaned.json"
+            dl_name = f"{stem}_cleaned.json"
 
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Output file not found")
